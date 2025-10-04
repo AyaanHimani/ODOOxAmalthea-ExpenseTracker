@@ -1,9 +1,13 @@
-import React from 'react'
+// src/Components/Routes/EmployeeRoutes.jsx
+import React from "react";
+import { Route, Routes } from "react-router-dom";
+import EmployeeDashboard from "../Employee/EmployeeDashboard"; // adjust path as needed
 
-const EmployeeRoutes = () => {
+export default function EmployeeRoutes() {
   return (
-    <div>EmployeeRoutes</div>
-  )
+    <Routes>
+      <Route path="/" element={<EmployeeDashboard />} />
+      {/* other employee routes */}
+    </Routes>
+  );
 }
-
-export default EmployeeRoutes

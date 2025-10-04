@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+// src/App.jsx
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -15,6 +16,22 @@ import AdminRoutes from "./Components/Routes/AdminRoutes.jsx";
 import ManagerRoutes from "./Components/Routes/ManagerRoutes.jsx";
 import EmployeeRoutes from "./Components/Routes/EmployeeRoutes.jsx";
 
+// TEMP: direct import of Employee dashboard so we can view UI without auth
+// Remove this import and the /employee-test route after you're done testing
+import EmployeeDashboard from "./Components/Employee/EmployeeDashboard.jsx";
+
+function ProtectedLayout() {
+  // layout used for protected sections (shows navbar + nested routes)
+  return (
+    <>
+      <Navbar />
+      <main style={{ paddingTop: 16 }}>
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
 function App() {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
@@ -26,29 +43,34 @@ function App() {
     setToken(authToken);
     setRole(userRole);
     setLoading(false);
+
+    // axios interceptor to attach token to all requests
+    if (authToken) {
+      const req = axios.interceptors.request.use((config) => {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${authToken}`;
+        return config;
+      });
+      return () => axios.interceptors.request.eject(req);
+    }
   }, []);
 
-  if (loading) return null; // or spinner
+  if (loading) return null; // or a spinner
 
   return (
     <Router>
       <Routes>
-        {/* ✅ Public Routes */}
+        {/* Public */}
         <Route
           path="/signup"
-          element={
-            // If logged in, redirect to role-based dashboard
-            token && role ? <Navigate to={`/${role}`} replace /> : <Signup />
-          }
+          element={token && role ? <Navigate to={`/${role}`} replace /> : <Signup />}
         />
         <Route
           path="/login"
-          element={
-            token && role ? <Navigate to={`/${role}`} replace /> : <Login />
-          }
+          element={token && role ? <Navigate to={`/${role}`} replace /> : <Login />}
         />
 
-        {/* ✅ Role-based root redirect */}
+        {/* Root: redirect to role dashboard if logged in */}
         <Route
           path="/"
           element={
@@ -56,29 +78,48 @@ function App() {
           }
         />
 
-        {/* ✅ Protected Routes with Navbar */}
-        <Route element={<Navbar />}>
+        {/* -------------------------
+            TEMP PUBLIC TEST ROUTE
+            -------------------------
+            Visit: /employee-test to view EmployeeDashboard without logging in.
+            Remove this route + import when done testing.
+        */}
+        <Route path="/employee-test" element={<EmployeeDashboard />} />
+
+        {/* Protected area (Navbar + nested protected routes) */}
+        <Route element={<ProtectedLayout />}>
+          {/* Admin */}
           <Route
             path="/admin/*"
             element={
-              <ProtectedRoute element={<AdminRoutes />} requiredRole="admin" />
+              <ProtectedRoute requiredRole="admin">
+                <AdminRoutes />
+              </ProtectedRoute>
             }
           />
+
+          {/* Manager */}
           <Route
             path="/manager/*"
             element={
-              <ProtectedRoute element={<ManagerRoutes />} requiredRole="manager" />
+              <ProtectedRoute requiredRole="manager">
+                <ManagerRoutes />
+              </ProtectedRoute>
             }
           />
+
+          {/* Employee */}
           <Route
             path="/employee/*"
             element={
-              <ProtectedRoute element={<EmployeeRoutes />} requiredRole="employee" />
+              <ProtectedRoute requiredRole="employee">
+                <EmployeeRoutes />
+              </ProtectedRoute>
             }
           />
         </Route>
 
-        {/* ✅ Catch-all fallback */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
