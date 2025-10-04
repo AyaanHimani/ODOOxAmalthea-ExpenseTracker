@@ -41,12 +41,49 @@ const extractReceiptData = async (req, res) => {
       }
     }
 
-    // Amount
+    let amount = "0.00";
     const amountRegex = /(\$|₹|€)?\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/g;
-    const amounts = [...text.matchAll(amountRegex)].map((m) =>
-      parseFloat(m[0].replace(/[^0-9.]/g, ""))
-    );
-    const amount = amounts.length ? Math.max(...amounts).toFixed(2) : "0.00";
+
+    // Split text into lines for context analysis
+
+    let totalLine = null;
+
+    // 1️⃣ Try to find a line containing 'total', 'amount due', 'grand total', etc.
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      if (
+        lower.includes("total") ||
+        lower.includes("amount due") ||
+        lower.includes("balance due") ||
+        lower.includes("grand total")
+      ) {
+        totalLine = line;
+        break;
+      }
+    }
+
+    // 2️⃣ Extract amount from that line first
+    if (totalLine) {
+      const match = totalLine.match(amountRegex);
+      if (match && match.length > 0) {
+        const parsed = parseFloat(
+          match[match.length - 1].replace(/[^0-9.]/g, "")
+        );
+        if (!isNaN(parsed)) {
+          amount = parsed.toFixed(2);
+        }
+      }
+    }
+
+    // 3️⃣ Fallback: if not found near 'total', pick the highest amount
+    if (amount === "0.00") {
+      const allMatches = [...text.matchAll(amountRegex)].map((m) =>
+        parseFloat(m[0].replace(/[^0-9.]/g, ""))
+      );
+      if (allMatches.length > 0) {
+        amount = Math.max(...allMatches).toFixed(2);
+      }
+    }
 
     // Date
     const dateRegex =
