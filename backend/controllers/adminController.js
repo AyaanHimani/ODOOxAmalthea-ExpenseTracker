@@ -14,6 +14,9 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const Expense = require('../models/Expense');
+const nodemailer = require("nodemailer");
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = 10;
 
 /* -----------------------
    Helpers
@@ -48,43 +51,179 @@ function ensureCompanyMatch(reqCompanyId, targetCompanyId) {
  * POST /api/admin/users
  * Body: { name, email, password, role = 'employee', manager (optional), isManagerApprover }
  */
+function generateTempPassword(length = 8) {
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let password = "";
+
+  // Ensure at least one number
+  password += charset.slice(52)[Math.floor(Math.random() * 10)];
+
+  // Ensure at least one uppercase letter
+  password += charset.slice(26, 52)[Math.floor(Math.random() * 26)];
+
+  // Ensure at least one lowercase letter
+  password += charset.slice(0, 26)[Math.floor(Math.random() * 26)];
+
+  // Fill the rest randomly
+  for (let i = password.length; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+
+  // Shuffle the password
+  return password
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("");
+}
+
 async function createUser(req, res) {
   try {
     const adminCompanyId = req.user.company;
-    const { name, email, password, role = 'employee', manager, isManagerApprover = false } = req.body;
-    if (!email || !password) return badRequest(res, 'email and password required');
+    const {
+      name,
+      email,
+      role = "employee",
+      manager,
+      isManagerApprover = false,
+    } = req.body;
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) return res.status(409).json({ error: 'Email already exists' });
+    if (!email)
+      return badRequest(res, "Email is required to create a user.");
 
+    // ✅ Check if user already exists
+    const existing = await User.findOne({
+      email: email.toLowerCase(),
+    });
+    if (existing) {
+      return res.status(409).json({
+        error: "Email already exists",
+      });
+    }
+
+    // ✅ Manager validation (if passed)
     if (manager) {
-      if (!mongoose.isValidObjectId(manager)) return badRequest(res, 'Invalid manager id');
+      if (!mongoose.isValidObjectId(manager))
+        return badRequest(res, "Invalid manager id");
       const mgr = await User.findById(manager);
       if (!mgr || !ensureCompanyMatch(adminCompanyId, mgr.company)) {
-        return badRequest(res, 'Manager must belong to your company');
+        return badRequest(res, "Manager must belong to your company");
       }
     }
 
+    // ✅ 1) Auto-generate a temp password
+    const tempPassword = generateTempPassword();
+
+    // ✅ 2) Hash the password
+    const passwordHash = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+
+    // ✅ 3) Create user with hashed password
     const user = new User({
-      name: name || '',
+      name: name || "",
       email: email.toLowerCase(),
-      passwordHash: password, // rely on model pre-save or setPassword helper
+      passwordHash,
       role,
       company: adminCompanyId,
       manager: manager || null,
       isManagerApprover: !!isManagerApprover,
-      meta: { createdBy: req.user.id }
+      meta: { createdBy: req.user.id },
     });
 
-    if (typeof user.setPassword === 'function') {
-      await user.setPassword(password);
-    }
     await user.save();
 
+    // ✅ 4) Send email with the temp password
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: `"ExpenseTracker Support" <${process.env.GMAIL_USER}>`,
+      to: user.email,
+      subject: "Your Account Login Details",
+      html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            .email-container {
+                max-width: 600px;
+                margin: 0 auto;
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background-color: #f9f9f9;
+            }
+            .header {
+                background-color: #2C3E50;
+                color: white;
+                padding: 20px;
+                text-align: center;
+                border-radius: 5px 5px 0 0;
+            }
+            .content {
+                background-color: white;
+                padding: 20px;
+                border-radius: 0 0 5px 5px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .password-box {
+                background-color: #f8f9fa;
+                border: 1px dashed #dee2e6;
+                padding: 15px;
+                margin: 20px 0;
+                text-align: center;
+                border-radius: 5px;
+            }
+            .footer {
+                text-align: center;
+                margin-top: 20px;
+                font-size: 12px;
+                color: #6c757d;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <h2>Welcome to ExpenseTracker!</h2>
+            </div>
+            <div class="content">
+                <p>Hello,</p>
+                <p>Your account has been created. Here are your login credentials:</p>
+                
+                <p><strong>Email:</strong> ${user.email}</p>
+                <div class="password-box">
+                    <strong style="font-size: 18px; letter-spacing: 2px;">${tempPassword}</strong>
+                </div>
+                
+                <p><strong>Next Steps:</strong></p>
+                <ul>
+                    <li>Log in using the credentials above</li>
+                    <li>Change your password after first login</li>
+                    <li>Explore your dashboard and start tracking expenses</li>
+                </ul>
+            </div>
+            <div class="footer">
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p>&copy; ${new Date().getFullYear()} ExpenseTracker. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // ✅ 5) Return created user (without sensitive fields)
     const out = user.toJSON();
     delete out.passwordHash;
     delete out.refreshTokenHash;
-    return res.status(201).json({ user: out });
+    return res.status(201).json({ user: out, sentPassword: true });
   } catch (err) {
     return serverErr(res, err);
   }
