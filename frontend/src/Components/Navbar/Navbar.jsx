@@ -1,28 +1,23 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom'; // <-- import Outlet
 
 function Navbar() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // 1. Clear all data from local storage
     localStorage.clear();
     console.log('Local storage cleared.');
-
-    // 2. Redirect the user to the /login page
-    navigate('/login');
+    navigate('/');
   };
 
   return (
     <nav className="bg-white shadow-md w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo or App Name */}
           <div className="flex-shrink-0">
             <span className="text-xl font-bold text-gray-800">ExpenseManager</span>
           </div>
-          
-          {/* Logout Button */}
           <div>
             <button
               onClick={handleLogout}
@@ -33,6 +28,7 @@ function Navbar() {
           </div>
         </div>
       </div>
+      <Outlet /> {/* <-- Add this line */}
     </nav>
   );
 }

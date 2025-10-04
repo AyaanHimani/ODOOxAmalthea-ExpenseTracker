@@ -272,7 +272,7 @@ async function listApprovalFlows(req, res) {
     const companyId = req.user.company;
     const company = await Company.findById(companyId).lean();
     if (!company) return notFound(res, 'Company not found');
-    return res.json({ flows: company.defaultApprovalFlows || [] });
+    return res.json({ flows: company.defaultApprovalFlow || [] });
   } catch (err) {
     return serverErr(res, err);
   }

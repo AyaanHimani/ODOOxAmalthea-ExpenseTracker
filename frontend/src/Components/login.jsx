@@ -136,7 +136,8 @@ export default function SignInPage() {
       console.log('Forgot Password Payload:', payload);
 
       // TODO: Replace with your actual API endpoint
-      const API_ENDPOINT = 'YOUR_BACKEND_API_ENDPOINT/auth/forgot-password';
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const API_ENDPOINT = `${backendUrl}/api/auth/forgot-password`;
 
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',

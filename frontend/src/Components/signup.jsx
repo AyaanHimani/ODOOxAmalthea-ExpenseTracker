@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function AdminSignupPage() {
   const [formData, setFormData] = useState({
-    name: '',
+    companyName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -113,7 +113,7 @@ export default function AdminSignupPage() {
       const currencyData = selectedCountryData.currencies[currencyCode];
 
       const payload = {
-        name: formData.name.trim(),
+        companyName: formData.companyName.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
         country: {
@@ -217,7 +217,7 @@ export default function AdminSignupPage() {
           <div className="space-y-5">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Name
+                Company Name
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -229,7 +229,7 @@ export default function AdminSignupPage() {
                   onChange={handleInputChange}
                   className={`w-full pl-11 pr-4 py-3 border ${errors.name ? 'border-red-300' : 'border-gray-300'
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
-                  placeholder="Enter your full name"
+                  placeholder="Enter Company name"
                 />
               </div>
               {errors.name && (
@@ -385,7 +385,7 @@ export default function AdminSignupPage() {
                   Creating Account...
                 </span>
               ) : (
-                'Create Admin Account'
+                'Create Company and Admin Account'
               )}
             </button>
           </div>

@@ -1,9 +1,19 @@
-import React from 'react'
+import { Routes, Route, Navigate } from "react-router-dom";
 
-const AdminRoutes = () => {
+// Admin Pages
+import Dashboard from "../../admin/dashboard.jsx";
+
+export default function AdminRoutes() {
   return (
-    <div>AdminRoutes</div>
-  )
-}
+    <Routes>
+      {/* Default /admin redirects to dashboard */}
+      <Route path="/" element={<Navigate to="dashboard" replace />} />
 
-export default AdminRoutes
+      {/* Admin Sub-Routes */}
+      <Route path="dashboard" element={<Dashboard />} />
+
+      {/* Catch-all: redirect to dashboard */}
+      <Route path="*" element={<Navigate to="dashboard" replace />} />
+    </Routes>
+  );
+}
