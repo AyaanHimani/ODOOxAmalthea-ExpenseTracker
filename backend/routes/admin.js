@@ -1,34 +1,46 @@
-// routes/admin.js
+// routes/adminRoutes.js
 const express = require('express');
 const router = express.Router();
-const { authenticateJWT, authorize } = require('../middleware/auth');
+
 const adminController = require('../controllers/adminController');
+const { authenticateJWT, authorize } = require('../middleware/auth');
 
-// all routes require Admin role
-router.use(authenticateJWT, authorize('admin'));
+/**
+ * NOTE:
+ * - All endpoints below require authentication.
+ * - Only users with role 'admin' can access them.
+ */
 
-// Users
-router.post('/users', adminController.createUser);         // create employee/manager
-router.get('/users', adminController.listUsers);           // list company users
-router.get('/users/:id', adminController.getUser);         // get single user
-router.patch('/users/:id', adminController.updateUser);    // update role/manager/flags
-router.delete('/users/:id', adminController.deleteUser);   // remove user
+/* -----------------------
+   USER MANAGEMENT
+   ----------------------- */
+router.post('/users', authenticateJWT, authorize('admin'), adminController.createUser);
+router.get('/users', authenticateJWT, authorize('admin'), adminController.listUsers);
+router.get('/users/:id', authenticateJWT, authorize('admin'), adminController.getUser);
+router.patch('/users/:id', authenticateJWT, authorize('admin'), adminController.updateUser);
+router.delete('/users/:id', authenticateJWT, authorize('admin'), adminController.deleteUser);
 
-// Approval Flows
-router.post('/approval-flows', adminController.createApprovalFlow);
-router.get('/approval-flows', adminController.listApprovalFlows);
-router.get('/approval-flows/:id', adminController.getApprovalFlow);
-router.patch('/approval-flows/:id', adminController.updateApprovalFlow);
-router.delete('/approval-flows/:id', adminController.deleteApprovalFlow);
+/* -----------------------
+   APPROVAL FLOWS
+   ----------------------- */
+router.post('/approval-flows', authenticateJWT, authorize('admin'), adminController.createApprovalFlow);
+router.get('/approval-flows', authenticateJWT, authorize('admin'), adminController.listApprovalFlows);
+router.get('/approval-flows/:id', authenticateJWT, authorize('admin'), adminController.getApprovalFlow);
+router.patch('/approval-flows/:id', authenticateJWT, authorize('admin'), adminController.updateApprovalFlow);
+router.delete('/approval-flows/:id', authenticateJWT, authorize('admin'), adminController.deleteApprovalFlow);
 
-// Approval Rules
-router.post('/approval-rules', adminController.createApprovalRule);
-router.get('/approval-rules', adminController.listApprovalRules);
-router.patch('/approval-rules/:id', adminController.updateApprovalRule);
-router.delete('/approval-rules/:id', adminController.deleteApprovalRule);
+/* -----------------------
+   APPROVAL RULES
+   ----------------------- */
+router.post('/approval-rules', authenticateJWT, authorize('admin'), adminController.createApprovalRule);
+router.get('/approval-rules', authenticateJWT, authorize('admin'), adminController.listApprovalRules);
+router.patch('/approval-rules/:id', authenticateJWT, authorize('admin'), adminController.updateApprovalRule);
+router.delete('/approval-rules/:id', authenticateJWT, authorize('admin'), adminController.deleteApprovalRule);
 
-// Expenses & overrides
-router.get('/expenses', adminController.listExpenses); // company-wide view
-router.post('/expenses/:id/override', adminController.overrideExpense); // admin override: approve/reject/set status
+/* -----------------------
+   EXPENSE MANAGEMENT (Admin)
+   ----------------------- */
+router.get('/expenses', authenticateJWT, authorize('admin'), adminController.listExpenses);
+router.post('/expenses/:id/override', authenticateJWT, authorize('admin'), adminController.overrideExpense);
 
 module.exports = router;

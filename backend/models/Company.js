@@ -1,31 +1,43 @@
 // models/Company.js
 const mongoose = require('mongoose');
+const { Schema } = mongoose;
 
-const CompanySchema = new mongoose.Schema({
-  companyName: { type: String, required: true, unique: true },
-  country: { type: String },
-  currency: {
-    code: { type: String },
-    symbol: { type: String },
-    name: { type: String }
-  },
-  baseCurrency: { type: String }, // e.g., "INR"
-  createdAt: { type: Date, default: Date.now },
-  defaultApprovalFlow: {
+const CurrencySchema = new Schema({
+  code: { type: String, required: true },
+  name: { type: String, default: '' },
+  symbol: { type: String, default: '' }
+}, { _id: false });
+
+const ApprovalStepSchema = new Schema({
+  level: Number,
+  role: String,
+  approvers: [{ type: Schema.Types.ObjectId, ref: 'User' }]
+}, { _id: false });
+
+const ApprovalRuleSchema = new Schema({
   name: String,
-  steps: [{
-    type: { type: String, enum: ['role','user','manager'], required: true },
-    value: mongoose.Schema.Types.Mixed, // role name or userId
-    requireAll: { type: Boolean, default: true },
-    minAmount: { type: Number, default: 0 }
-  }],
-  // rule inside flow
-  rule: {
-    type: { type: String, enum: ['percentage','specific','none'], default: 'none' },
-    percentageThreshold: Number,
-    specificApprover: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-  }
-}
+  type: { type: String, enum: ['percentage','specific','hybrid'], required: true },
+  percentageThreshold: Number,
+  specificApprover: { type: Schema.Types.ObjectId, ref: 'User' },
+  description: String,
+  enabled: { type: Boolean, default: true }
+}, { _id: false });
+
+const ApprovalFlowSchema = new Schema({
+  name: String,
+  description: String,
+  steps: [ApprovalStepSchema],
+  rule: ApprovalRuleSchema,
+  isDefault: { type: Boolean, default: false },
+  active: { type: Boolean, default: true }
+}, { _id: false });
+
+const CompanySchema = new Schema({
+  name: { type: String, required: true },
+  country: { type: String, required: true },
+  currency: { type: CurrencySchema, required: true },
+  approvalFlows: { type: [ApprovalFlowSchema], default: [] },
+  approvalRules: { type: [ApprovalRuleSchema], default: [] }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Company', CompanySchema);
