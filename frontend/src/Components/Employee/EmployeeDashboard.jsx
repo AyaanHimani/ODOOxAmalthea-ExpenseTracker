@@ -1,68 +1,77 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Upload, X, FileText, Calendar, DollarSign, Tag, FileCheck, Clock, Eye, MessageSquare, AlertCircle, CheckCircle, XCircle, Loader, Camera, ArrowUpCircle, RefreshCw } from "lucide-react";
+import {
+  Upload,
+  X,
+  FileText,
+  Calendar,
+  DollarSign,
+  Tag,
+  FileCheck,
+  Clock,
+  Eye,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader,
+  Camera,
+  ArrowUpCircle,
+  RefreshCw,
+} from "lucide-react";
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 // API Helper Functions
 const api = {
   // Get auth token from localStorage
-  getToken: () => localStorage.getItem('token'),
-  
+  getToken: () => localStorage.getItem("authToken"),
+
   // Get headers with auth
   getHeaders: () => ({
-    'Authorization': `Bearer ${api.getToken()}`,
+    Authorization: `Bearer ${api.getToken()}`,
   }),
 
   // Submit new expense
   createExpense: async (expenseData) => {
-    const response = await fetch(`${API_BASE_URL}/expenses`, {
-      method: 'POST',
+    const response = await fetch(`${API_BASE_URL}/api/expenses`, {
+      method: "POST",
       headers: {
         ...api.getHeaders(),
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(expenseData),
     });
-    if (!response.ok) throw new Error('Failed to create expense');
+    if (!response.ok) throw new Error("Failed to create expense");
     return response.json();
   },
 
   // List expenses
   listExpenses: async (filters = {}) => {
     const params = new URLSearchParams(filters);
-    const response = await fetch(`${API_BASE_URL}/expenses?${params}`, {
+    const response = await fetch(`${API_BASE_URL}/api/expenses?${params}`, {
       headers: api.getHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch expenses');
-    return response.json();
+    if (!response.ok) throw new Error("Failed to fetch expenses");
+    const data = await response.json();
+    console.log("Fetched expenses:", data);
+    return data;
   },
 
   // OCR extraction
   extractReceiptData: async (file) => {
     const formData = new FormData();
-    formData.append('receipt', file);
-    
-    const response = await fetch(`${API_BASE_URL}/ocr/extract`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) throw new Error('OCR extraction failed');
-    return response.json();
-  },
+    formData.append("receipt", file);
 
-  // Upload receipt (if you have a separate endpoint)
-  uploadReceipt: async (file) => {
-    const formData = new FormData();
-    formData.append('receipt', file);
-    
-    const response = await fetch(`${API_BASE_URL}/receipts/upload`, {
-      method: 'POST',
-      headers: api.getHeaders(),
+    const response = await fetch(`${API_BASE_URL}/api/ocr/extract`, {
+      method: "POST",
       body: formData,
     });
-    if (!response.ok) throw new Error('Failed to upload receipt');
-    return response.json();
+    console.log("OCR response status:", response.status);
+    const data = await response.json();
+    console.log("OCR response data:", data);
+    if (!response.ok) throw new Error("OCR extraction failed");
+    return data;
   },
 };
 
@@ -101,7 +110,10 @@ export default function EmployeeDashboard() {
   const [history, setHistory] = useState([]);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
-  const [companyInfo, setCompanyInfo] = useState({ name: "ACME Ltd", currency: "USD" });
+  const [companyInfo, setCompanyInfo] = useState({
+    name: "ACME Ltd",
+    currency: "USD",
+  });
   const fileInputRef = useRef();
 
   // Fetch expenses on mount
@@ -121,8 +133,8 @@ export default function EmployeeDashboard() {
       const data = await api.listExpenses();
       setHistory(data.expenses || []);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
-      setErrors('Failed to load expenses. Please try again.');
+      console.error("Error fetching expenses:", error);
+      setErrors("Failed to load expenses. Please try again.");
       setTimeout(() => setErrors(null), 3000);
     } finally {
       setLoading(false);
@@ -141,25 +153,31 @@ export default function EmployeeDashboard() {
       setOcrProcessing(true);
       try {
         const ocrData = await api.extractReceiptData(files[0]);
-        
+
         // Map OCR response to form fields
         if (ocrData.success) {
-          setAmount(ocrData.data.amount?.toString() || "");
-          setOriginalAmount(ocrData.data.amount?.toString() || "");
-          setDate(ocrData.data.date || formatDateISO(new Date()));
-          setCategory(ocrData.data.category || categories[0]);
-          setDescription(ocrData.data.description || "");
-          setMerchantName(ocrData.data.merchantName || ocrData.data.vendor || "");
-          
-          setErrors("✓ Receipt scanned successfully! Please verify the extracted data.");
+          setAmount(ocrData.amount?.toString() || "");
+          setOriginalAmount(ocrData.amount?.toString() || "");
+          setDate(ocrData.date || formatDateISO(new Date()));
+          setCategory(ocrData.category || categories[0]);
+          setDescription(ocrData.description || "");
+          setMerchantName(ocrData.merchant || ocrData.vendor || "");
+
+          setErrors(
+            "✓ Receipt scanned successfully! Please verify the extracted data."
+          );
           setTimeout(() => setErrors(null), 4000);
         } else {
-          setErrors("⚠️ OCR processing completed but some fields may need manual entry.");
+          setErrors(
+            "⚠️ OCR processing completed but some fields may need manual entry."
+          );
           setTimeout(() => setErrors(null), 4000);
         }
       } catch (err) {
-        console.error('OCR Error:', err);
-        setErrors("⚠️ OCR processing failed. Please fill in the fields manually.");
+        console.error("OCR Error:", err);
+        setErrors(
+          "⚠️ OCR processing failed. Please fill in the fields manually."
+        );
         setTimeout(() => setErrors(null), 4000);
       } finally {
         setOcrProcessing(false);
@@ -173,10 +191,12 @@ export default function EmployeeDashboard() {
   }
 
   function validate() {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return "Enter a valid amount greater than 0";
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
+      return "Enter a valid amount greater than 0";
     if (!date) return "Select a date";
     if (!category) return "Select a category";
-    if (receipts.length === 0 && receiptUrls.length === 0) return "Attach at least one receipt";
+    if (receipts.length === 0 && receiptUrls.length === 0)
+      return "Attach at least one receipt";
     if (!description.trim()) return "Enter a description";
     return null;
   }
@@ -184,7 +204,7 @@ export default function EmployeeDashboard() {
   async function handleSubmit(e) {
     e.preventDefault();
     setErrors(null);
-    
+
     const v = validate();
     if (v) {
       setErrors(v);
@@ -195,40 +215,38 @@ export default function EmployeeDashboard() {
     setProgress(0);
 
     try {
-      // Upload receipts first if any
-      const uploadedReceiptUrls = [];
-      for (let i = 0; i < receipts.length; i++) {
-        setProgress(Math.floor(((i + 1) / (receipts.length + 1)) * 70));
-        
-        try {
-          const uploadResult = await api.uploadReceipt(receipts[i]);
-          uploadedReceiptUrls.push(uploadResult.url || uploadResult.path);
-        } catch (uploadError) {
-          console.error('Receipt upload error:', uploadError);
-          // Continue even if one upload fails
-        }
-      }
-
       setProgress(80);
 
-      // Create expense payload
+      // ✅ Get user data from localStorage
+      const userId = localStorage.getItem("userId");
+      const company = JSON.parse(localStorage.getItem("company"));
+      const companyId = company?.id;
+
+      if (!userId || !companyId) {
+        throw new Error("Missing user or company information.");
+      }
+
+      // ✅ Create expense payload matching backend fields
       const expenseData = {
-        amount: Number(amount),
-        originalAmount: Number(originalAmount || amount),
-        currency: currency,
-        date: date,
-        category: category,
+        userId,
+        companyId,
+        amountOriginal: Number(originalAmount || amount),
+        currencyOriginal: currency,
+        amountBase: Number(amount), // same as converted/base amount if applicable
+        baseCurrency: "USD", // set default or fetch from backend
+        category,
         description: description.trim(),
+        expenseDate: date, // already in yyyy-MM-dd from your OCR
+        approvalFlowName: "Standard", // or dynamic from your app
         merchantName: merchantName.trim() || undefined,
-        receipts: uploadedReceiptUrls,
       };
 
-      // Submit expense
+      // ✅ Send to backend
       const result = await api.createExpense(expenseData);
-      
+
       setProgress(100);
 
-      // Reset form
+      // ✅ Reset form
       setAmount("");
       setOriginalAmount("");
       setCurrency("USD");
@@ -238,33 +256,42 @@ export default function EmployeeDashboard() {
       setReceiptUrls([]);
       setPreviewUrls([]);
       setDate(formatDateISO(new Date()));
-      
+
       setErrors("✓ Expense submitted successfully! Awaiting manager approval.");
-      
-      // Refresh expense list
+
+      // ✅ Refresh list
       await fetchExpenses();
-      
+
       setTimeout(() => {
         setErrors(null);
         setProgress(0);
       }, 3000);
-
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error("Submission error:", error);
       setErrors(`Failed to submit expense: ${error.message}`);
     } finally {
       setUploading(false);
     }
   }
 
-  const totalSubmitted = history.reduce((s, item) => s + Number(item.amount || 0), 0);
-  const pendingCount = history.filter(h => h.status?.toLowerCase() === "pending").length;
-  const approvedCount = history.filter(h => h.status?.toLowerCase() === "approved").length;
-  const rejectedCount = history.filter(h => h.status?.toLowerCase() === "rejected").length;
+  const totalSubmitted = history.reduce(
+    (s, item) => s + Number(item.amountOriginal || 0),
+    0
+  );
+  const pendingCount = history.filter(
+    (h) => h.status?.toLowerCase() === "pending"
+  ).length;
+  const approvedCount = history.filter(
+    (h) => h.status?.toLowerCase() === "approved"
+  ).length;
+  const rejectedCount = history.filter(
+    (h) => h.status?.toLowerCase() === "rejected"
+  ).length;
 
-  const filteredHistory = filterStatus === "all" 
-    ? history 
-    : history.filter(h => h.status?.toLowerCase() === filterStatus);
+  const filteredHistory =
+    filterStatus === "all"
+      ? history
+      : history.filter((h) => h.status?.toLowerCase() === filterStatus);
 
   if (loading && history.length === 0) {
     return (
@@ -286,7 +313,9 @@ export default function EmployeeDashboard() {
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Expense Manager
             </h1>
-            <p className="mt-1 text-gray-600">Submit expenses, track approvals in real-time</p>
+            <p className="mt-1 text-gray-600">
+              Submit expenses, track approvals in real-time
+            </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <button
@@ -294,15 +323,14 @@ export default function EmployeeDashboard() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white shadow-md hover:shadow-lg border border-gray-200 text-gray-700 transition-all"
               disabled={loading}
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
               Refresh
             </button>
             <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold shadow-lg">
               {companyInfo.name} • {companyInfo.currency}
             </div>
-            <button className="bg-white px-4 py-2 rounded-xl shadow-md hover:shadow-lg border border-gray-200 text-gray-700 transition-all">
-              Logout
-            </button>
           </div>
         </div>
 
@@ -344,7 +372,9 @@ export default function EmployeeDashboard() {
           <div className="lg:col-span-3">
             <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-white/50">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Submit New Expense</h2>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Submit New Expense
+                </h2>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Camera className="w-4 h-4" />
                   <span>OCR Enabled</span>
@@ -354,7 +384,9 @@ export default function EmployeeDashboard() {
               {ocrProcessing && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
                   <Loader className="w-5 h-5 animate-spin text-blue-600" />
-                  <span className="text-blue-800 font-medium">Processing receipt with OCR...</span>
+                  <span className="text-blue-800 font-medium">
+                    Processing receipt with OCR...
+                  </span>
                 </div>
               )}
 
@@ -369,8 +401,12 @@ export default function EmployeeDashboard() {
                     className="border-2 border-dashed border-indigo-300 rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/50 transition-all"
                   >
                     <Upload className="mx-auto w-10 h-10 text-indigo-600 mb-3" />
-                    <div className="text-sm font-medium text-gray-700">Click to upload receipt</div>
-                    <div className="text-xs text-gray-500 mt-2">Auto-extracts amount, date, category • Images or PDF</div>
+                    <div className="text-sm font-medium text-gray-700">
+                      Click to upload receipt
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Auto-extracts amount, date, category • Images or PDF
+                    </div>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -384,22 +420,33 @@ export default function EmployeeDashboard() {
                   {previewUrls.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {previewUrls.map((u, i) => (
-                        <div key={i} className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
+                        <div
+                          key={i}
+                          className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm"
+                        >
                           <div className="h-32 bg-gray-100 flex items-center justify-center">
                             {receipts[i].type === "application/pdf" ? (
                               <div className="text-center">
                                 <FileText className="w-12 h-12 text-red-500 mx-auto mb-2" />
-                                <div className="text-xs text-gray-600 font-medium">PDF</div>
+                                <div className="text-xs text-gray-600 font-medium">
+                                  PDF
+                                </div>
                               </div>
                             ) : (
-                              <img src={u} alt="preview" className="w-full h-full object-cover" />
+                              <img
+                                src={u}
+                                alt="preview"
+                                className="w-full h-full object-cover"
+                              />
                             )}
                           </div>
                           <div className="p-2 bg-white flex items-center justify-between gap-2">
-                            <div className="truncate text-xs text-gray-700">{receipts[i].name}</div>
-                            <button 
+                            <div className="truncate text-xs text-gray-700">
+                              {receipts[i].name}
+                            </div>
+                            <button
                               type="button"
-                              onClick={() => removeReceipt(i)} 
+                              onClick={() => removeReceipt(i)}
                               className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded"
                             >
                               <X className="w-4 h-4" />
@@ -414,7 +461,9 @@ export default function EmployeeDashboard() {
                 {/* Amount and Currency */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Amount *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Amount *
+                    </label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                       <input
@@ -429,7 +478,9 @@ export default function EmployeeDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Currency *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Currency *
+                    </label>
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
@@ -450,7 +501,9 @@ export default function EmployeeDashboard() {
                 {/* Date and Category */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Date *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Date *
+                    </label>
                     <input
                       type="date"
                       value={date}
@@ -461,21 +514,29 @@ export default function EmployeeDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Category *
+                    </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       required
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none bg-white transition-all"
                     >
-                      {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 {/* Merchant Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Merchant/Vendor Name</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Merchant/Vendor Name
+                  </label>
                   <input
                     value={merchantName}
                     onChange={(e) => setMerchantName(e.target.value)}
@@ -486,7 +547,9 @@ export default function EmployeeDashboard() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description *
+                  </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -498,8 +561,18 @@ export default function EmployeeDashboard() {
                 </div>
 
                 {errors && (
-                  <div className={`p-4 rounded-xl flex items-start gap-3 ${errors.includes('✓') ? 'bg-green-50 border-2 border-green-200 text-green-800' : 'bg-red-50 border-2 border-red-200 text-red-800'}`}>
-                    {errors.includes('✓') ? <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+                  <div
+                    className={`p-4 rounded-xl flex items-start gap-3 ${
+                      errors.includes("✓")
+                        ? "bg-green-50 border-2 border-green-200 text-green-800"
+                        : "bg-red-50 border-2 border-red-200 text-red-800"
+                    }`}
+                  >
+                    {errors.includes("✓") ? (
+                      <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    )}
                     <span className="font-medium">{errors}</span>
                   </div>
                 )}
@@ -527,8 +600,8 @@ export default function EmployeeDashboard() {
 
                 {uploading && (
                   <div className="w-full bg-gray-200 rounded-full overflow-hidden h-2">
-                    <div 
-                      style={{ width: `${progress}%` }} 
+                    <div
+                      style={{ width: `${progress}%` }}
                       className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-300"
                     />
                   </div>
@@ -540,7 +613,9 @@ export default function EmployeeDashboard() {
           {/* Quick Stats Sidebar */}
           <div className="lg:col-span-2">
             <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-white/50 sticky top-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Submission Tips</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
+                Submission Tips
+              </h3>
               <div className="space-y-4">
                 <TipCard
                   icon={<Camera className="w-5 h-5 text-blue-600" />}
@@ -565,7 +640,9 @@ export default function EmployeeDashboard() {
               </div>
 
               <div className="mt-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-100">
-                <div className="text-sm font-semibold text-gray-700 mb-2">Approval Flow</div>
+                <div className="text-sm font-semibold text-gray-700 mb-2">
+                  Approval Flow
+                </div>
                 <div className="space-y-2 text-xs text-gray-600">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
@@ -573,7 +650,9 @@ export default function EmployeeDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    <span>Step 2: Auto-conversion to {companyInfo.currency}</span>
+                    <span>
+                      Step 2: Auto-conversion to {companyInfo.currency}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
@@ -588,8 +667,10 @@ export default function EmployeeDashboard() {
         {/* Expense History */}
         <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-white/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h3 className="text-2xl font-bold text-gray-800">Expense History</h3>
-            
+            <h3 className="text-2xl font-bold text-gray-800">
+              Expense History
+            </h3>
+
             {/* Filter Tabs */}
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
               {["all", "pending", "approved", "rejected"].map((status) => (
@@ -608,8 +689,8 @@ export default function EmployeeDashboard() {
             </div>
           </div>
 
-          <ExpenseHistoryTable 
-            entries={filteredHistory} 
+          <ExpenseHistoryTable
+            entries={filteredHistory}
             onViewDetails={setSelectedExpense}
             loading={loading}
           />
@@ -631,11 +712,15 @@ function StatCard({ icon, title, value, subtitle, gradient }) {
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/50 hover:shadow-xl transition-all">
       <div className="flex items-center gap-4">
-        <div className={`rounded-xl p-3 bg-gradient-to-br ${gradient} text-white shadow-md`}>
+        <div
+          className={`rounded-xl p-3 bg-gradient-to-br ${gradient} text-white shadow-md`}
+        >
           {icon}
         </div>
         <div className="flex-1">
-          <div className="text-xs font-semibold text-gray-500 uppercase">{title}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase">
+            {title}
+          </div>
           <div className="text-2xl font-bold text-gray-900 mt-1">{value}</div>
           <div className="text-xs text-gray-500 mt-0.5">{subtitle}</div>
         </div>
@@ -671,7 +756,9 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
       <div className="py-16 text-center">
         <FileText className="mx-auto w-16 h-16 text-gray-300 mb-4" />
         <div className="text-gray-500 font-medium">No expenses found</div>
-        <div className="text-sm text-gray-400 mt-2">Submit your first expense to get started</div>
+        <div className="text-sm text-gray-400 mt-2">
+          Submit your first expense to get started
+        </div>
       </div>
     );
   }
@@ -679,20 +766,21 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
   return (
     <div className="space-y-3">
       {entries.map((e) => (
-        <div 
-          key={e._id || e.id} 
+        <div
+          key={e._id || e.id}
           className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl border-2 border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer"
           onClick={() => onViewDetails(e)}
         >
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200 flex-shrink-0">
               {e.receipts && e.receipts.length > 0 ? (
-                <img 
-                  src={e.receipts[0]} 
-                  alt="receipt" 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={e.receipts[0]}
+                  alt="receipt"
+                  className="w-full h-full object-cover"
                   onError={(ev) => {
-                    ev.target.src = "https://via.placeholder.com/300?text=Receipt";
+                    ev.target.src =
+                      "https://via.placeholder.com/300?text=Receipt";
                   }}
                 />
               ) : (
@@ -701,10 +789,12 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold text-gray-500">{e._id || e.id}</span>
+                <span className="text-xs font-bold text-gray-500">
+                  {e._id || e.id}
+                </span>
                 <span className="text-xs text-gray-400">•</span>
                 <span className="text-xs text-gray-500">
-                  {new Date(e.date || e.createdAt).toLocaleDateString()}
+                  {new Date(e.expenseDate || e.createdAt).toLocaleDateString()}
                 </span>
               </div>
               <div className="text-lg font-bold text-gray-900">
@@ -712,9 +802,9 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-600">{e.category}</span>
-                {e.currency && e.currency !== "USD" && (
+                {e.currencyOriginal && e.currencyOriginal !== "USD" && (
                   <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
-                    {e.currency}
+                    {e.currencyOriginal}
                   </span>
                 )}
               </div>
@@ -726,10 +816,10 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
 
           <div className="flex md:flex-col items-center md:items-end gap-3 md:gap-2">
             <div className="text-2xl font-bold text-gray-900">
-              ${Number(e.amount || 0).toLocaleString()}
+              ${Number(e.amountOriginal || 0).toLocaleString()}
             </div>
             <StatusBadge status={e.status} />
-            <button 
+            <button
               onClick={(ev) => {
                 ev.stopPropagation();
                 onViewDetails(e);
@@ -748,11 +838,14 @@ function ExpenseHistoryTable({ entries = [], onViewDetails, loading }) {
 
 function StatusBadge({ status }) {
   const s = (status || "draft").toLowerCase();
-  const base = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold";
-  
+  const base =
+    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold";
+
   if (s === "approved") {
     return (
-      <span className={`${base} bg-green-100 text-green-700 ring-2 ring-green-200`}>
+      <span
+        className={`${base} bg-green-100 text-green-700 ring-2 ring-green-200`}
+      >
         <CheckCircle className="w-3.5 h-3.5" />
         Approved
       </span>
@@ -768,13 +861,19 @@ function StatusBadge({ status }) {
   }
   if (s === "pending") {
     return (
-      <span className={`${base} bg-amber-100 text-amber-700 ring-2 ring-amber-200`}>
+      <span
+        className={`${base} bg-amber-100 text-amber-700 ring-2 ring-amber-200`}
+      >
         <Clock className="w-3.5 h-3.5" />
         Pending
       </span>
     );
   }
-  return <span className={`${base} bg-gray-100 text-gray-700 ring-2 ring-gray-200`}>{status}</span>;
+  return (
+    <span className={`${base} bg-gray-100 text-gray-700 ring-2 ring-gray-200`}>
+      {status}
+    </span>
+  );
 }
 
 function ExpenseDetailsModal({ expense, onClose }) {
@@ -785,7 +884,9 @@ function ExpenseDetailsModal({ expense, onClose }) {
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Expense Details</h2>
-            <p className="text-indigo-100 text-sm mt-1">{expense._id || expense.id}</p>
+            <p className="text-indigo-100 text-sm mt-1">
+              {expense._id || expense.id}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -807,11 +908,12 @@ function ExpenseDetailsModal({ expense, onClose }) {
               <div className="text-right">
                 <div className="text-sm text-gray-600 mb-1">Amount</div>
                 <div className="text-3xl font-bold text-gray-900">
-                  ${Number(expense.amount || 0).toLocaleString()}
+                  ${Number(expense.amountOriginal || 0).toLocaleString()}
                 </div>
                 {expense.currency && expense.currency !== "USD" && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Original: {expense.originalAmount || expense.amount} {expense.currency}
+                    Original: {expense.amountOriginal || expense.amountBase}{" "}
+                    {expense.baseCurrency}
                   </div>
                 )}
               </div>
@@ -820,84 +922,67 @@ function ExpenseDetailsModal({ expense, onClose }) {
 
           {/* Expense Info Grid */}
           <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <InfoField 
-              label="Merchant/Vendor" 
-              value={expense.merchantName || expense.merchant || "Not specified"} 
+            <InfoField
+              label="Merchant/Vendor"
+              value={
+                expense.merchantName || expense.merchant || "Not specified"
+              }
             />
-            <InfoField label="Category" value={expense.category || "Uncategorized"} />
-            <InfoField 
-              label="Date" 
-              value={new Date(expense.date || expense.createdAt).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })} 
+            <InfoField
+              label="Category"
+              value={expense.category || "Uncategorized"}
+            />
+            <InfoField
+              label="Date"
+              value={new Date(
+                expense.date || expense.expenseDate
+              ).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             />
             <InfoField label="Currency" value={expense.currency || "USD"} />
-            <InfoField 
-              label="Submitted On" 
-              value={new Date(expense.createdAt || expense.date).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })} 
+            <InfoField
+              label="Submitted On"
+              value={new Date(
+                expense.createdAt || expense.date
+              ).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             />
-            <InfoField 
-              label="Submitted By" 
-              value={expense.employeeName || expense.submittedBy || "You"} 
+            <InfoField
+              label="Submitted By"
+              value={expense.employeeName || expense.submittedBy || "You"}
             />
           </div>
 
           {/* Description */}
           <div className="mb-6">
-            <label className="text-sm font-semibold text-gray-700 mb-2 block">Description</label>
+            <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              Description
+            </label>
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-gray-700">
               {expense.description || "No description provided"}
             </div>
           </div>
 
-          {/* Receipt Images */}
-          {expense.receipts && expense.receipts.length > 0 && (
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-gray-700 mb-3 block">Receipt(s)</label>
-              <div className="grid grid-cols-2 gap-4">
-                {expense.receipts.map((receipt, idx) => (
-                  <div key={idx} className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-md">
-                    <img 
-                      src={receipt} 
-                      alt={`Receipt ${idx + 1}`} 
-                      className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => window.open(receipt, '_blank')}
-                      onError={(ev) => {
-                        ev.target.src = "https://via.placeholder.com/300?text=Receipt";
-                      }}
-                    />
-                    <div className="p-2 bg-white">
-                      <a 
-                        href={receipt} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
-                      >
-                        <Eye className="w-3 h-3" />
-                        View Full Size
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Approval Timeline */}
           {expense.approvalSteps && expense.approvalSteps.length > 0 && (
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-3 block">Approval Timeline</label>
+              <label className="text-sm font-semibold text-gray-700 mb-3 block">
+                Approval Timeline
+              </label>
               <div className="space-y-3">
                 {expense.approvalSteps.map((step, idx) => (
-                  <div key={idx} className="flex gap-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                  <div
+                    key={idx}
+                    className="flex gap-4 p-4 rounded-xl bg-gray-50 border border-gray-200"
+                  >
                     <div className="flex-shrink-0">
                       {step.status === "Approved" && (
                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -920,10 +1005,15 @@ function ExpenseDetailsModal({ expense, onClose }) {
                         {step.approverName || step.approver || "Approver"}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
-                        {step.status === "Pending" 
-                          ? "Awaiting review" 
-                          : `${step.status} ${step.date ? `on ${new Date(step.date).toLocaleDateString()}` : ''}`
-                        }
+                        {step.status === "Pending"
+                          ? "Awaiting review"
+                          : `${step.status} ${
+                              step.date
+                                ? `on ${new Date(
+                                    step.date
+                                  ).toLocaleDateString()}`
+                                : ""
+                            }`}
                       </div>
                       {step.comments && (
                         <div className="mt-2 p-3 bg-white rounded-lg border border-gray-200 text-sm text-gray-700">
@@ -943,7 +1033,9 @@ function ExpenseDetailsModal({ expense, onClose }) {
           {/* If no approval steps, show default message */}
           {(!expense.approvalSteps || expense.approvalSteps.length === 0) && (
             <div className="mt-6">
-              <label className="text-sm font-semibold text-gray-700 mb-3 block">Approval Status</label>
+              <label className="text-sm font-semibold text-gray-700 mb-3 block">
+                Approval Status
+              </label>
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
                 <Clock className="w-5 h-5 text-amber-600" />
                 <span className="text-sm text-amber-800 font-medium">
@@ -971,7 +1063,9 @@ function ExpenseDetailsModal({ expense, onClose }) {
 function InfoField({ label, value }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">{label}</label>
+      <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">
+        {label}
+      </label>
       <div className="text-base font-medium text-gray-900">{value}</div>
     </div>
   );

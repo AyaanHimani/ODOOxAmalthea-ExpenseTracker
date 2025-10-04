@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const { Schema, model, Types } = mongoose;
 
 const ExpenseSchema = new Schema({
+  merchantName: { type: String, required: true },
+
   company: { type: Types.ObjectId, ref: 'Company', required: true, index: true },
   submittedBy: { type: Types.ObjectId, ref: 'User', required: true, index: true },
 

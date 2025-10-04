@@ -4,7 +4,9 @@ const fs = require("fs");
 
 const extractReceiptData = async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ success: false, message: "No file uploaded" });
+    return res
+      .status(400)
+      .json({ success: false, message: "No file uploaded" });
   }
 
   const inputPath = req.file.path;
@@ -48,12 +50,28 @@ const extractReceiptData = async (req, res) => {
 
     // Date
     const dateRegex =
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Za-z]{3,9}\s?\d{1,2}[, ]\s?\d{2,4})/g;
+      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Za-z]{3,9}\s?\d{1,2}[, ]?\s?\d{2,4})/g;
     const dates = [...text.matchAll(dateRegex)].map((m) => m[0]);
-    const date = dates.length ? dates[0] : "Not detected";
+    let date = dates.length ? dates[0] : "Not detected";
+
+    // Convert dd-MM-yyyy → yyyy-MM-dd if pattern matches
+    if (date !== "Not detected") {
+      const match = date.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if (match) {
+        const [_, dd, mm, yyyy] = match;
+        date = `${yyyy.length === 2 ? "20" + yyyy : yyyy}-${mm.padStart(
+          2,
+          "0"
+        )}-${dd.padStart(2, "0")}`;
+      } else {
+        date = "Invalid date format";
+      }
+    }
 
     // Description
-    const description = `Expense for ${merchant !== "Unknown" ? merchant : "General"}`;
+    const description = `Expense for ${
+      merchant !== "Unknown" ? merchant : "General"
+    }`;
 
     // Step 4: Delete temp files after successful processing
     fs.unlinkSync(inputPath);

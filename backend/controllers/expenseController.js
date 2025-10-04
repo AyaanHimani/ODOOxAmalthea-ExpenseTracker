@@ -14,7 +14,7 @@ async function createExpense(req, res) {
     const userId = req.user.id;
     const companyId = req.user.company;
     const {
-      amountOriginal, currencyOriginal, amountBase, baseCurrency,
+      merchantName, amountOriginal, currencyOriginal, amountBase, baseCurrency,
       category, description, expenseDate, approvalFlowName
     } = req.body;
 
@@ -23,6 +23,7 @@ async function createExpense(req, res) {
     }
 
     const exp = await Expense.create({
+      merchantName: merchantName || 'Unknown Merchant',
       company: companyId,
       submittedBy: userId,
       amountOriginal,
